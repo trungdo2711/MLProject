@@ -15,12 +15,13 @@ A hybrid **Heuristic Rule Engine + Machine Learning (Ensemble)** solution design
 - **⚡ Multi-Stage Detection Pipeline**: Uses a fast whitelist filter, then applies high-priority hard heuristics, and finally falls back to ML model predictions if no clear rule matches.
 - **📊 Advanced Feature Engineering**: Extracts over 30+ lexical, structural, entropy, and brand-relationship features from any given URL.
 - **🧠 Weight-Optimized ML Ensemble**: Leverages an ensemble of **Random Forest** and **XGBoost** models. During training, weights are dynamically adjusted using grid search to maximize the $F_2$ score.
-- **🔍 Intelligent Hard Rules**:
-  - **Brand Spoofing**: Computes Jaro-Winkler & Levenshtein-like substring similarity using `rapidfuzz` against top global/local brands.
+- **🔍 Intelligent Hard Rules & Dynamic Thresholds**:
+  - **Brand Spoofing**: Computes substring similarity using `rapidfuzz` (averaging full ratio and partial ratio) against top global/local brands, with length-ratio safeguards to prevent false positives (e.g., `vietnamnet` vs `vinaphone`).
   - **C2 Malware Callbacks**: Detects randomized subdomains (via Shannon Entropy) combined with UUID patterns in paths.
-  - **Malware Distribution**: Identifies executable downloads hosted on free VPS/hosting sites (e.g., Vercel, Netlify, Github Pages).
+  - **Malware Distribution**: Identifies executable downloads hosted on free VPS/hosting sites.
+  - **Vietnam TLDs (`.vn`)**: Applies specialized, highly-permissive thresholds to VNNIC-registered domains (`.vn`, `.com.vn`, etc.) which are strictly regulated and rarely abused.
 - **📝 Dynamic Domain Whitelisting**: Employs a local cache generated from the Tranco Top-1M domains to skip evaluation of highly trusted websites.
-- **🖥️ Dual Interface**: Includes a responsive **Flask Web App** UI and a **Command Line Interface (CLI)** in Vietnamese.
+- **🖥️ Dual Interface**: Includes a responsive **Flask Web App** UI (in English) and a **Command Line Interface (CLI)**.
 
 ---
 
@@ -148,7 +149,7 @@ This script will output the training process logs, print the classification repo
 
 ## 📊 Extracted Features Breakdown
 
-The system extracts **32 features** split into 4 primary categories:
+The system extracts **33 features** split into 4 primary categories:
 
 | Feature Name | Category | Description |
 | :--- | :--- | :--- |
@@ -161,3 +162,4 @@ The system extracts **32 features** split into 4 primary categories:
 | `subdomain_is_random` | Subdomain Heuristic | Detects if the subdomain part matches high-entropy/random generation. |
 | `is_free_hosting` | Host Heuristic | Detects hosting on platforms often abused by malicious actors. |
 | `has_executable_ext` | Payload Heuristic | Identifies typical malware extensions (e.g. `.exe`, `.msi`, `.sh`, `.bin`). |
+| `is_domain_only` | Structural | Flags bare domains (no path/query) to allow the ML model to self-correct its bias against short URLs. |
