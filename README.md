@@ -21,7 +21,7 @@ A hybrid **Heuristic Rule Engine + Machine Learning (Ensemble)** solution design
   - **Malware Distribution**: Identifies executable downloads hosted on free VPS/hosting sites.
   - **Vietnam TLDs (`.vn`)**: Applies specialized, highly-permissive thresholds to VNNIC-registered domains (`.vn`, `.com.vn`, etc.) which are strictly regulated and rarely abused.
 - **📝 Dynamic Domain Whitelisting**: Employs a local cache generated from the Tranco Top-1M domains to skip evaluation of highly trusted websites.
-- **🖥️ Dual Interface**: Includes a responsive **Flask Web App** UI (in English) and a **Command Line Interface (CLI)**.
+- **🖥️ Web Interface**: Includes a responsive **Flask Web App** UI (in English).
 
 ---
 
@@ -71,7 +71,6 @@ MLProject/
 ├── templates/
 │   └── index.html           # Web UI interface page
 ├── app.py                   # Flask server application
-├── main.py                  # Vietnamese CLI application
 └── .gitignore               # Ignored environments, model binaries, cache, & IDE junk
 ```
 
@@ -117,28 +116,7 @@ python app.py
 ```
 Open [http://127.0.0.1:5000/](http://127.0.0.1:5000/) in your browser. Enter any URL to get instant analysis, classification results, models' vote probabilities, and rule reasoning.
 
-### 2. Command Line Interface (CLI)
-Run the interactive Vietnamese CLI scanner:
-```bash
-python main.py
-```
-**Example usage:**
-```text
-=================================================================
-       HỆ THỐNG AI PHÁT HIỆN URL LỪA ĐẢO (PHISHING)       
-=================================================================
-
-👉 Nhập URL cần kiểm tra (hoặc gõ 'exit' để thoát): secure-paypal-verify.tk
-⏳ Đang quét đặc trưng và phân tích...
------------------------------------------------------------------
-👉 Phán quyết cuối cùng : [ 🚨 LỪA ĐẢO (DANGEROUS) ]
-📊 Độ tự tin (Xác suất) : 100.00%
-🧠 Nguồn phán quyết     : hard_rule
-📝 Lý do                : Suspicious TLD + brand similarity: 0.85
------------------------------------------------------------------
-```
-
-### 3. Model Retraining Pipeline
+### 2. Model Retraining Pipeline
 To retrain the ML classifiers and re-calculate the ensemble weights based on `data/malicious_phish.csv`:
 ```bash
 python src/training.py
