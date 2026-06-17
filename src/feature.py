@@ -69,6 +69,10 @@ def brand_similarity(sld: str) -> float:
     2. partial_ratio (rapidfuzz): tìm substring khớp tốt nhất trong SLD với brand.
        Thực tế và ít false positive hơn Jaro-Winkler vì không có prefix bonus.
        Score trả về là 0.0–1.0 (từ thang 0–100 của rapidfuzz).
+
+    len_ratio >= 0.65: bắt buộc SLD và brand phải có độ dài tương đương.
+    Tránh false positive khi SLD dài (vd: 'vietnamnet') bị match nhầm với
+    brand ngắn hơn (vd: 'viettel') dù hoàn toàn không liên quan.
     """
     max_score = 0.0
     for brand in FAMOUS_BRANDS:
@@ -80,9 +84,14 @@ def brand_similarity(sld: str) -> float:
 
         # --- rapidfuzz partial_ratio * len_ratio ---
         len_ratio = min(len(sld), len(brand)) / max(len(sld), len(brand))
-        if len_ratio < 0.5:
-            continue  # quá chênh lệch độ dài, bỏ qua
-        score = (fuzz.partial_ratio(sld, brand) / 100.0) * len_ratio
+        if len_ratio < 0.65:
+            continue  # chênh lệch độ dài > 35% → bỏ qua để tránh false positive
+        # Dùng trung bình ratio + partial_ratio:
+        # partial_ratio một mình quá lỏng — 'vietnamnet' vs 'vinaphone' cho
+        # partial_ratio=100 vì tìm được substring khớp, nhưng full ratio thấp.
+        # Trung bình hai loại score này giúp cân bằng giữa substring match và
+        # toàn bộ chuỗi, giảm false positive với SLD chia sẻ prefix 'viet*'.
+        score = ((fuzz.ratio(sld, brand) + fuzz.partial_ratio(sld, brand)) / 200.0) * len_ratio
         max_score = max(max_score, score)
 
     return round(max_score, 4)
@@ -170,6 +179,8 @@ def _subdomain_is_random(hostname: str) -> int:
 
 def extracting_features(url):
     url_lower = str(url).strip().lower()
+    # Normalize: strip trailing slashes so "example.com/" == "example.com"
+    url_lower = url_lower.rstrip('/')
 
     clean_url = re.sub(r'^https?://', '', url_lower)
     clean_url = re.sub(r'^www\.', '', clean_url)
@@ -260,6 +271,10 @@ def extracting_features(url):
         'has_download_param':      has_download_param,
         'free_hosting_download':   free_hosting_download,
         'has_executable_ext':      has_executable_ext,
+        # 1 khi URL chỉ là bare domain (không path, không query).
+        # Model cần feature này để tự học rằng bare domain + clean = safe,
+        # thay vì phải dùng hard rule / post-processing để compensate.
+        'is_domain_only':          1 if (len(path) == 0 and not query) else 0,
     }
     return features
 

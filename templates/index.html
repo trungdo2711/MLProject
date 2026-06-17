@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Phát Hiện URL Lừa Đảo</title>
+    <title>Phishing URL Detection AI</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
@@ -13,42 +13,42 @@
     <div class="container">
         <div class="card">
 
-            <h1>🛡️ AI Phát Hiện URL Lừa Đảo</h1>
+            <h1>🛡️ Phishing URL Detection AI</h1>
             <p class="subtitle">
-                Kiểm tra độ an toàn của website bằng AI
+                Check website safety using AI
             </p>
 
             <div class="input-group">
-                <input type="text" id="urlInput" placeholder="Nhập URL cần kiểm tra...">
+                <input type="text" id="urlInput" placeholder="Enter URL to check...">
                 <button onclick="checkURL()">
-                    Kiểm Tra
+                    Check
                 </button>
             </div>
 
             <div id="loading" class="loading hidden">
-                ⏳ Đang phân tích...
+                ⏳ Analyzing...
             </div>
 
             <div id="result" class="result hidden">
-                <h2>Kết quả</h2>
+                <h2>Result</h2>
 
                 <div class="result-item">
-                    <span>Phán quyết:</span>
+                    <span>Verdict:</span>
                     <span id="label"></span>
                 </div>
 
                 <div class="result-item">
-                    <span>Độ tin cậy:</span>
+                    <span>Confidence:</span>
                     <span id="prob"></span>
                 </div>
 
                 <div class="result-item">
-                    <span>Nguồn:</span>
+                    <span>Source:</span>
                     <span id="source"></span>
                 </div>
 
                 <div class="result-item">
-                    <span>Lý do:</span>
+                    <span>Reason:</span>
                     <span id="reason"></span>
                 </div>
             </div>
@@ -103,7 +103,7 @@
 
                 loading.classList.add("hidden");
 
-                alert("Lỗi: " + err);
+                alert("Error: " + err);
 
             }
         }

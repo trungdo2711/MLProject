@@ -6,7 +6,7 @@ import pandas as pd
 import xgboost as xgb
 import joblib
 
-from src.feature import extracting_features, is_trusted_domain
+from src.feature import extracting_features, is_trusted_domain, SHORTENERS
 
 # Load models and weights
 rf_model  = joblib.load('models/rf_model.pkl')
@@ -31,10 +31,8 @@ def predict_single_url(url: str) -> dict:
     if not url.startswith(('http://', 'https://')):
         url = 'https://' + url
 
-    # Normalize: strip trailing slash khỏi path (vi/ == vi về ngữ nghĩa)
-    parsed_norm = urlparse(url)
-    if parsed_norm.path.endswith('/') and parsed_norm.path != '/':
-        url = url.rstrip('/')
+    # Normalize: always strip trailing slashes so "example.com/" == "example.com"
+    url = url.rstrip('/')
 
     clean = re.sub(r'^https?://', '', url.lower())
     clean = re.sub(r'^www\.', '', clean)
@@ -44,6 +42,24 @@ def predict_single_url(url: str) -> dict:
         parsed = urlparse('//')
     hostname = parsed.netloc.split(':')[0]
     query    = parsed.query or ''
+
+    # Shortener check (must come BEFORE whitelist: bit.ly is in top-1M
+    # but any shortened URL is inherently suspicious regardless)
+    is_shortener_host = (
+        hostname in SHORTENERS or
+        any(hostname.endswith('.' + s) for s in SHORTENERS)
+    )
+    if is_shortener_host:
+        feat  = extracting_features(url)
+        X     = pd.DataFrame([feat])
+        p_rf  = rf_model.predict_proba(X)[0][1]
+        p_xgb = xgb_model.predict_proba(X)[0][1]
+        prob  = W_RF * p_rf + W_XGB * p_xgb
+        return {
+            'prediction': 1, 'label': 'dangerous', 'prob': round(prob, 4),
+            'prob_rf':  round(p_rf, 4), 'prob_xgb': round(p_xgb, 4),
+            'source': 'hard_rule', 'reason': f'URL shortener: {hostname}',
+        }
 
     # Whitelist check
     if is_trusted_domain(hostname):
@@ -116,6 +132,39 @@ def predict_single_url(url: str) -> dict:
     p_xgb = xgb_model.predict_proba(X)[0][1]
     prob  = W_RF * p_rf + W_XGB * p_xgb
 
+
+    # --- Vietnam TLD (.vn) ---
+    # Tên miền .vn và các eTLD như .com.vn, .net.vn, .org.vn, .edu.vn, .gov.vn
+    # phải đăng ký qua VNNIC nên rất khó bị lạm dụng để phishing.
+    # Domain .vn sạch (không suspicious word, không brand spoof rõ ràng,
+    # không IP, không free hosting) được nâng threshold lên 0.92.
+    _tld = feat.get('tld_suspicious', 1)  # already computed
+    _vn_etlds = {'vn', 'com.vn', 'net.vn', 'org.vn', 'edu.vn', 'gov.vn',
+                 'int.vn', 'ac.vn', 'biz.vn', 'info.vn', 'name.vn', 'pro.vn'}
+    from tldextract import extract as _tldext
+    _ext = _tldext(hostname)
+    _suffix = _ext.suffix.lower() if _ext.suffix else ''
+    is_vn_domain = _suffix in _vn_etlds
+
+    clean_vn = is_vn_domain and (
+        feat['brand_similarity'] < 0.75 and   # chỉ chặn spoof rõ ràng
+        feat['has_suspicious_word'] == 0 and
+        feat['is_ip'] == 0 and
+        feat['subdomain_is_random'] == 0 and
+        feat['is_free_hosting'] == 0 and
+        feat['has_executable_ext'] == 0
+    )
+
+    clean_domain = (
+        feat['tld_suspicious'] == 0 and
+        feat['brand_similarity'] < 0.65 and   # raised from 0.55: VN news domains
+        feat['has_suspicious_word'] == 0 and  # like 'vietnamnet' score ~0.58 due to
+        feat['is_ip'] == 0 and                # shared 'viet' prefix with VN brands
+        feat['subdomain_is_random'] == 0 and
+        feat['is_free_hosting'] == 0 and
+        feat['has_executable_ext'] == 0
+    )
+
     # --- Determine threshold ---
 
     q_count       = len(query.split('&')) if query else 0
@@ -128,27 +177,19 @@ def predict_single_url(url: str) -> dict:
         and feat['tld_suspicious'] == 0 and feat['is_ip'] == 0
     )
 
-
-    clean_domain = (
-        feat['tld_suspicious'] == 0 and
-        feat['brand_similarity'] < 0.55 and
-        feat['has_suspicious_word'] == 0 and
-        feat['is_ip'] == 0 and
-        feat['subdomain_is_random'] == 0 and
-        feat['is_free_hosting'] == 0 and
-        feat['has_executable_ext'] == 0
-    )
-
     if is_short_sus:
         threshold = 0.30
     elif is_word_salad:
         threshold = 0.35
     elif url_long_clean:
         threshold = 0.60
+    elif clean_vn:
+        threshold = 0.92   # .vn domain sạch: VNNIC kiểm soát → rất ít phishing
     elif clean_domain:
-        threshold = 0.85  
+        threshold = 0.85
     else:
         threshold = 0.45
+
 
 
     prediction = 1 if prob >= threshold else 0
