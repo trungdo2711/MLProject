@@ -90,10 +90,44 @@ button:hover {
 .result-item {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     padding: 10px 0;
     border-bottom: 1px solid #e2e8f0;
 }
 
 .hidden {
     display: none;
+}
+
+/* Badge styles */
+.badge {
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-weight: bold;
+    font-size: 14px;
+    display: inline-block;
+}
+
+.badge-safe {
+    background-color: #dcfce7;
+    color: #16a34a;
+    border: 1px solid #bbf7d0;
+}
+
+.badge-warning {
+    background-color: #fef3c7;
+    color: #d97706;
+    border: 1px solid #fde68a;
+}
+
+.badge-warning-dark {
+    background-color: #ffedd5;
+    color: #ea580c;
+    border: 1px solid #fed7aa;
+}
+
+.badge-danger {
+    background-color: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
 }

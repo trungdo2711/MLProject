@@ -12,9 +12,11 @@ from src.feature import extracting_features, is_trusted_domain, SHORTENERS
 rf_model  = joblib.load('models/rf_model.pkl')
 xgb_model = xgb.XGBClassifier()
 xgb_model.load_model('models/xgb_model.json')
+lgb_model = joblib.load('models/lgb_model.pkl')
+lr_model  = joblib.load('models/lr_model.pkl')
 
 _w = json.load(open('models/weights.json'))
-W_RF, W_XGB = _w['w_rf'], _w['w_xgb']
+W_RF, W_XGB, W_LGB, W_LR = _w['w_rf'], _w['w_xgb'], _w.get('w_lgb', 0.0), _w.get('w_lr', 0.0)
 
 TRACKING_PARAMS = [
     'utm_source', 'utm_medium', 'utm_campaign',
@@ -54,10 +56,13 @@ def predict_single_url(url: str) -> dict:
         X     = pd.DataFrame([feat])
         p_rf  = rf_model.predict_proba(X)[0][1]
         p_xgb = xgb_model.predict_proba(X)[0][1]
-        prob  = W_RF * p_rf + W_XGB * p_xgb
+        p_lgb = lgb_model.predict_proba(X)[0][1]
+        p_lr  = lr_model.predict_proba(X)[0][1]
+        prob  = W_RF * p_rf + W_XGB * p_xgb + W_LGB * p_lgb + W_LR * p_lr
         return {
             'prediction': 1, 'label': 'dangerous', 'prob': round(prob, 4),
             'prob_rf':  round(p_rf, 4), 'prob_xgb': round(p_xgb, 4),
+            'prob_lgb': round(p_lgb, 4), 'prob_lr': round(p_lr, 4),
             'source': 'hard_rule', 'reason': f'URL shortener: {hostname}',
         }
 
@@ -86,59 +91,55 @@ def predict_single_url(url: str) -> dict:
             'reason': f'Suspicious TLD + brand similarity: {feat["brand_similarity"]}',
         }
 
-    # UUID path + subdomain random → C2/malware callback
+    # UUID path + subdomain random -> C2/malware callback
     if feat['has_uuid_path'] == 1 and feat['subdomain_is_random'] == 1:
         return {
             'prediction': 1, 'label': 'dangerous', 'prob': 1.0,
             'source': 'hard_rule',
-            'reason': 'Random subdomain + UUID path/query — likely C2 callback',
+            'reason': 'Random subdomain + UUID path/query - likely C2 callback',
         }
 
-    # UUID path + high subdomain entropy → C2 callback (subdomain_is_random có thể miss)
+    # UUID path + high subdomain entropy -> C2 callback (subdomain_is_random might miss)
     if feat['has_uuid_path'] == 1 and feat['subdomain_entropy'] >= 2.4:
         return {
             'prediction': 1, 'label': 'dangerous', 'prob': 1.0,
             'source': 'hard_rule',
-            'reason': f'UUID path + high-entropy subdomain ({feat["subdomain_entropy"]}) — likely C2 callback',
+            'reason': f'UUID path + high-entropy subdomain ({feat["subdomain_entropy"]}) - likely C2 callback',
         }
 
-    # Executable file + random subdomain → malware served from random VPS
+    # Executable file + random subdomain -> malware served from random VPS
     if feat['has_executable_ext'] == 1 and feat['subdomain_is_random'] == 1:
         return {
             'prediction': 1, 'label': 'dangerous', 'prob': 1.0,
             'source': 'hard_rule',
-            'reason': 'Executable file extension + random subdomain — likely malware distribution',
+            'reason': 'Executable file extension + random subdomain - likely malware distribution',
         }
 
-    # Executable file + free hosting → malware distribution
+    # Executable file + free hosting -> malware distribution
     if feat['has_executable_ext'] == 1 and feat['is_free_hosting'] == 1:
         return {
             'prediction': 1, 'label': 'dangerous', 'prob': 1.0,
             'source': 'hard_rule',
-            'reason': 'Executable file extension + free hosting — likely malware distribution',
+            'reason': 'Executable file extension + free hosting - likely malware distribution',
         }
 
-    # Free hosting + download → malware distribution
+    # Free hosting + download -> malware distribution
     if feat['free_hosting_download'] == 1:
         return {
             'prediction': 1, 'label': 'dangerous', 'prob': 1.0,
             'source': 'hard_rule',
-            'reason': 'Free hosting + download param — likely malware distribution',
+            'reason': 'Free hosting + download param - likely malware distribution',
         }
     
     # ML prediction
     X     = pd.DataFrame([feat])
     p_rf  = rf_model.predict_proba(X)[0][1]
     p_xgb = xgb_model.predict_proba(X)[0][1]
-    prob  = W_RF * p_rf + W_XGB * p_xgb
+    p_lgb = lgb_model.predict_proba(X)[0][1]
+    p_lr  = lr_model.predict_proba(X)[0][1]
+    prob  = W_RF * p_rf + W_XGB * p_xgb + W_LGB * p_lgb + W_LR * p_lr
 
-
-    # --- Vietnam TLD (.vn) ---
-    # Tên miền .vn và các eTLD như .com.vn, .net.vn, .org.vn, .edu.vn, .gov.vn
-    # phải đăng ký qua VNNIC nên rất khó bị lạm dụng để phishing.
-    # Domain .vn sạch (không suspicious word, không brand spoof rõ ràng,
-    # không IP, không free hosting) được nâng threshold lên 0.92.
-    _tld = feat.get('tld_suspicious', 1)  # already computed
+    _tld = feat.get('tld_suspicious', 1) 
     _vn_etlds = {'vn', 'com.vn', 'net.vn', 'org.vn', 'edu.vn', 'gov.vn',
                  'int.vn', 'ac.vn', 'biz.vn', 'info.vn', 'name.vn', 'pro.vn'}
     from tldextract import extract as _tldext
@@ -147,7 +148,7 @@ def predict_single_url(url: str) -> dict:
     is_vn_domain = _suffix in _vn_etlds
 
     clean_vn = is_vn_domain and (
-        feat['brand_similarity'] < 0.75 and   # chỉ chặn spoof rõ ràng
+        feat['brand_similarity'] < 0.75 and   
         feat['has_suspicious_word'] == 0 and
         feat['is_ip'] == 0 and
         feat['subdomain_is_random'] == 0 and
@@ -157,15 +158,15 @@ def predict_single_url(url: str) -> dict:
 
     clean_domain = (
         feat['tld_suspicious'] == 0 and
-        feat['brand_similarity'] < 0.65 and   # raised from 0.55: VN news domains
-        feat['has_suspicious_word'] == 0 and  # like 'vietnamnet' score ~0.58 due to
-        feat['is_ip'] == 0 and                # shared 'viet' prefix with VN brands
+        feat['brand_similarity'] < 0.65 and   
+        feat['has_suspicious_word'] == 0 and  
+        feat['is_ip'] == 0 and               
         feat['subdomain_is_random'] == 0 and
         feat['is_free_hosting'] == 0 and
         feat['has_executable_ext'] == 0
     )
 
-    # --- Determine threshold ---
+    # Threshold determining
 
     q_count       = len(query.split('&')) if query else 0
     has_tracking  = any(p in query.lower() for p in TRACKING_PARAMS)
@@ -184,7 +185,7 @@ def predict_single_url(url: str) -> dict:
     elif url_long_clean:
         threshold = 0.60
     elif clean_vn:
-        threshold = 0.92   # .vn domain sạch: VNNIC kiểm soát → rất ít phishing
+        threshold = 0.92   
     elif clean_domain:
         threshold = 0.85
     else:
@@ -200,5 +201,8 @@ def predict_single_url(url: str) -> dict:
         'prob':       round(prob, 4),
         'prob_rf':    round(p_rf,  4),
         'prob_xgb':   round(p_xgb, 4),
+        'prob_lgb':   round(p_lgb, 4),
+        'prob_lr':    round(p_lr, 4),
         'source':     'model',
+        'threshold':  threshold,
     }

@@ -13,24 +13,24 @@
     <div class="container">
         <div class="card">
 
-            <h1>🛡️ Phishing URL Detection AI</h1>
+            <h1>🛡️ Phishing URL Detection </h1>
             <p class="subtitle">
-                Check website safety using AI
+                Check website safety using Machine Learning
             </p>
 
             <div class="input-group">
-                <input type="text" id="urlInput" placeholder="Enter URL to check...">
+                <input type="text" id="urlInput" placeholder="Enter URL to check (e.g. google.com)...">
                 <button onclick="checkURL()">
                     Check
                 </button>
             </div>
 
             <div id="loading" class="loading hidden">
-                ⏳ Analyzing...
+                ⏳ Analyzing URL...
             </div>
 
             <div id="result" class="result hidden">
-                <h2>Result</h2>
+                <h2>Analysis Result</h2>
 
                 <div class="result-item">
                     <span>Verdict:</span>
@@ -38,17 +38,22 @@
                 </div>
 
                 <div class="result-item">
-                    <span>Confidence:</span>
+                    <span>Phishing Probability:</span>
                     <span id="prob"></span>
                 </div>
 
                 <div class="result-item">
-                    <span>Source:</span>
+                    <span>Decision Threshold:</span>
+                    <span id="threshold"></span>
+                </div>
+
+                <div class="result-item">
+                    <span>Verification Source:</span>
                     <span id="source"></span>
                 </div>
 
                 <div class="result-item">
-                    <span>Reason:</span>
+                    <span>Reason Detail:</span>
                     <span id="reason"></span>
                 </div>
             </div>
@@ -63,6 +68,11 @@
 
             const resultBox = document.getElementById("result");
             const loading = document.getElementById("loading");
+
+            if (!url) {
+                alert("Please enter a URL to check!");
+                return;
+            }
 
             loading.classList.remove("hidden");
             resultBox.classList.add("hidden");
@@ -83,19 +93,74 @@
 
                 loading.classList.add("hidden");
 
-                document.getElementById("label").innerHTML =
-                    result.label === "safe"
-                        ? "✅ SAFE"
-                        : "🚨 DANGEROUS";
+                if (result.error) {
+                    alert("Error: " + result.error);
+                    return;
+                }
+
+                // Determine verdict and badge color dynamically by threshold
+                let statusText = "";
+                let badgeClass = "";
+                const prob = result.prob;
+                const threshold = result.threshold;
+
+                if (result.source === "whitelist") {
+                    statusText = "✅ Safe";
+                    badgeClass = "badge badge-safe";
+                } else if (result.source === "hard_rule") {
+                    statusText = "🚨 Dangerous";
+                    badgeClass = "badge badge-danger";
+                } else {
+                    // Prediction using ML model
+                    if (result.prediction === 1) {
+                        // Exceeds threshold -> Dangerous or Suspicious (High Risk)
+                        if (prob >= threshold + 0.05 || prob >= 0.70) {
+                            statusText = "🚨 Dangerous";
+                            badgeClass = "badge badge-danger";
+                        } else {
+                            statusText = "⚠️ Suspicious (High)";
+                            badgeClass = "badge badge-warning-dark";
+                        }
+                    } else {
+                        // Below threshold -> Safe or Suspicious (Low Risk / High Risk)
+                        const safeBound = Math.min(0.20, threshold * 0.5);
+                        const lowBound = threshold * 0.75;
+                        if (prob < safeBound) {
+                            statusText = "✅ Safe";
+                            badgeClass = "badge badge-safe";
+                        } else if (prob < lowBound) {
+                            statusText = "⚠️ Suspicious (Low)";
+                            badgeClass = "badge badge-warning";
+                        } else {
+                            statusText = "⚠️ Suspicious (High)";
+                            badgeClass = "badge badge-warning-dark";
+                        }
+                    }
+                }
+
+                const labelEl = document.getElementById("label");
+                labelEl.innerHTML = statusText;
+                labelEl.className = badgeClass;
 
                 document.getElementById("prob").innerHTML =
-                    (result.prob * 100).toFixed(2) + "%";
+                    (prob * 100).toFixed(2) + "%";
 
-                document.getElementById("source").innerHTML =
-                    result.source || "-";
+                document.getElementById("threshold").innerHTML =
+                    (threshold * 100).toFixed(0) + "%";
+
+                let englishSource = result.source || "-";
+                if (result.source === "whitelist") {
+                    englishSource = "Trusted Whitelist";
+                } else if (result.source === "hard_rule") {
+                    englishSource = "Hard Rule Check";
+                } else if (result.source === "model") {
+                    englishSource = "Machine Learning Model";
+                }
+
+                document.getElementById("source").innerHTML = englishSource;
 
                 document.getElementById("reason").innerHTML =
-                    result.reason || "-";
+                    result.reason || "Analyzed via ensemble machine learning models";
 
                 resultBox.classList.remove("hidden");
 
@@ -103,7 +168,7 @@
 
                 loading.classList.add("hidden");
 
-                alert("Error: " + err);
+                alert("An error occurred: " + err);
 
             }
         }

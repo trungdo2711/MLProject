@@ -60,37 +60,15 @@ EXECUTABLE_EXTENSIONS = {
 }
 
 def brand_similarity(sld: str) -> float:
-    """
-    Tính độ tương đồng giữa SLD và các brand nổi tiếng.
-
-    Chiến lược:
-    1. Contains-brand: nếu SLD *chứa* tên brand nguyên vẹn (ví dụ "secure-paypal-login"
-       chứa "paypal") → đây là dấu hiệu phishing rõ ràng, trả về điểm cao cố định (0.85).
-    2. partial_ratio (rapidfuzz): tìm substring khớp tốt nhất trong SLD với brand.
-       Thực tế và ít false positive hơn Jaro-Winkler vì không có prefix bonus.
-       Score trả về là 0.0–1.0 (từ thang 0–100 của rapidfuzz).
-
-    len_ratio >= 0.65: bắt buộc SLD và brand phải có độ dài tương đương.
-    Tránh false positive khi SLD dài (vd: 'vietnamnet') bị match nhầm với
-    brand ngắn hơn (vd: 'viettel') dù hoàn toàn không liên quan.
-    """
     max_score = 0.0
     for brand in FAMOUS_BRANDS:
-        # --- Contains check ---
         if brand in sld and sld != brand:
-            # SLD chứa brand nhưng có thêm ký tự → rất có thể là phishing
             max_score = max(max_score, 0.85)
-            continue  # đã đạt ngưỡng cao, không cần tính fuzz cho brand này
+            continue  
 
-        # --- rapidfuzz partial_ratio * len_ratio ---
         len_ratio = min(len(sld), len(brand)) / max(len(sld), len(brand))
         if len_ratio < 0.65:
-            continue  # chênh lệch độ dài > 35% → bỏ qua để tránh false positive
-        # Dùng trung bình ratio + partial_ratio:
-        # partial_ratio một mình quá lỏng — 'vietnamnet' vs 'vinaphone' cho
-        # partial_ratio=100 vì tìm được substring khớp, nhưng full ratio thấp.
-        # Trung bình hai loại score này giúp cân bằng giữa substring match và
-        # toàn bộ chuỗi, giảm false positive với SLD chia sẻ prefix 'viet*'.
+            continue  
         score = ((fuzz.ratio(sld, brand) + fuzz.partial_ratio(sld, brand)) / 200.0) * len_ratio
         max_score = max(max_score, score)
 
@@ -165,7 +143,6 @@ def _subdomain_is_random(hostname: str) -> int:
     subdomain = ext.subdomain
     if not subdomain:
         return 0
-    # Use the leftmost part of the subdomain (e.g. "small-morning-8be0" from "small-morning-8be0.fsocietyandtools")
     sub = subdomain.split('.')[0]
     if len(sub) < 5 or len(sub) > 20:
         return 0
@@ -179,7 +156,6 @@ def _subdomain_is_random(hostname: str) -> int:
 
 def extracting_features(url):
     url_lower = str(url).strip().lower()
-    # Normalize: strip trailing slashes so "example.com/" == "example.com"
     url_lower = url_lower.rstrip('/')
 
     clean_url = re.sub(r'^https?://', '', url_lower)
@@ -197,11 +173,11 @@ def extracting_features(url):
     hostname = netloc.split(':')[0] if ':' in netloc else netloc
     has_port = 1 if re.search(r':\d+', netloc) else 0
 
-    # Use tldextract for accurate eTLD parsing (handles workers.dev, github.io, co.uk, etc.)
+    # Use tldextract for accurate eTLD parsing 
     ext = tldextract.extract(hostname)
-    tld             = ext.suffix                         # e.g. "workers.dev", "com.vn", "co.uk"
-    tld_leaf        = tld.split('.')[-1] if tld else ''  # e.g. "dev", "vn", "uk"
-    sld             = ext.domain                         # e.g. "fsocietyandtools"
+    tld             = ext.suffix                         
+    tld_leaf        = tld.split('.')[-1] if tld else ''  
+    sld             = ext.domain                        
     subdomain_count = len(ext.subdomain.split('.')) if ext.subdomain else 0
 
     n_chars      = len(clean_url) if clean_url else 1
@@ -234,7 +210,7 @@ def extracting_features(url):
 
     # Detect executable/malware file extensions in path
     import os
-    path_ext = os.path.splitext(path.lower())[1]  # e.g. '.i686', '.exe', '.sh'
+    path_ext = os.path.splitext(path.lower())[1]  
     has_executable_ext = 1 if path_ext in EXECUTABLE_EXTENSIONS else 0
 
     features = {
@@ -271,9 +247,6 @@ def extracting_features(url):
         'has_download_param':      has_download_param,
         'free_hosting_download':   free_hosting_download,
         'has_executable_ext':      has_executable_ext,
-        # 1 khi URL chỉ là bare domain (không path, không query).
-        # Model cần feature này để tự học rằng bare domain + clean = safe,
-        # thay vì phải dùng hard rule / post-processing để compensate.
         'is_domain_only':          1 if (len(path) == 0 and not query) else 0,
     }
     return features
@@ -304,7 +277,7 @@ def generate_whitelist(
                 continue
             f_out.write(domain + '\n')
             count += 1
-    print(f"Done — {count} domains saved to {dst}")
+    print(f"Done - {count} domains saved to {dst}")
 
 
 if __name__ == "__main__":

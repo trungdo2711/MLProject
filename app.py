@@ -36,8 +36,11 @@ def predict():
             "prediction": int(result.get("prediction", 0)),
             "label": result.get("label"),
             "prob": float(result.get("prob", 0)),
+            "threshold": float(result.get("threshold", 0.5)),
             "prob_rf": float(result["prob_rf"]) if result.get("prob_rf") is not None else None,
             "prob_xgb": float(result["prob_xgb"]) if result.get("prob_xgb") is not None else None,
+            "prob_lgb": float(result["prob_lgb"]) if result.get("prob_lgb") is not None else None,
+            "prob_lr": float(result["prob_lr"]) if result.get("prob_lr") is not None else None,
             "source": result.get("source"),
             "reason": result.get("reason")
         })

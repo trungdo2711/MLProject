@@ -133,8 +133,11 @@ dmypy.json
 
 # Large Model Files
 models/rf_model.pkl
+models/lgb_model.pkl
+models/lr_model.pkl
 
 # Temporary files
 tempCodeRunnerFile.py
+
 
 

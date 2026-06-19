@@ -4,9 +4,10 @@
 [![Flask](https://img.shields.io/badge/flask-%23000.svg?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-%23F7931E.svg?logo=scikit-learn&logoColor=white)](https://scikit-learn.org/)
 [![XGBoost](https://img.shields.io/badge/xgboost-%231E72B6.svg?logoColor=white)](https://xgboost.readthedocs.io/)
+[![LightGBM](https://img.shields.io/badge/lightgbm-%2300C853.svg?logoColor=white)](https://lightgbm.readthedocs.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A hybrid **Heuristic Rule Engine + Machine Learning (Ensemble)** solution designed to detect malicious, phishing, and malware-distribution URLs. The system features advanced feature extraction, heuristic validation (brand spoofing, C2 pattern detection), and a weighted prediction model (Random Forest & XGBoost) optimized using $F_2$-score metric to prioritize recall (minimizing false negatives).
+A hybrid **Heuristic Rule Engine + Machine Learning (Ensemble)** solution designed to detect malicious, phishing, and malware-distribution URLs. The system features advanced feature extraction, heuristic validation (brand spoofing, C2 pattern detection), and a weighted prediction model (**Random Forest**, **XGBoost**, **LightGBM**, & **Logistic Regression**) optimized using $F_2$-score metric to prioritize recall (minimizing false negatives).
 
 ---
 
@@ -14,7 +15,7 @@ A hybrid **Heuristic Rule Engine + Machine Learning (Ensemble)** solution design
 
 - **⚡ Multi-Stage Detection Pipeline**: Uses a fast whitelist filter, then applies high-priority hard heuristics, and finally falls back to ML model predictions if no clear rule matches.
 - **📊 Advanced Feature Engineering**: Extracts over 30+ lexical, structural, entropy, and brand-relationship features from any given URL.
-- **🧠 Weight-Optimized ML Ensemble**: Leverages an ensemble of **Random Forest** and **XGBoost** models. During training, weights are dynamically adjusted using grid search to maximize the $F_2$ score.
+- **🧠 Weight-Optimized ML Ensemble**: Leverages a four-model ensemble of **Random Forest**, **XGBoost**, **LightGBM**, and **Logistic Regression**. During training, weights are dynamically adjusted using a grid search to maximize the $F_2$ score.
 - **🔍 Intelligent Hard Rules & Dynamic Thresholds**:
   - **Brand Spoofing**: Computes substring similarity using `rapidfuzz` (averaging full ratio and partial ratio) against top global/local brands, with length-ratio safeguards to prevent false positives (e.g., `vietnamnet` vs `vinaphone`).
   - **C2 Malware Callbacks**: Detects randomized subdomains (via Shannon Entropy) combined with UUID patterns in paths.
@@ -40,8 +41,10 @@ flowchart TD
     G --> H[Predict Proba]
     H --> H1[Random Forest]
     H --> H2[XGBoost]
+    H --> H3[LightGBM]
+    H --> H4[Logistic Regression]
     
-    H1 & H2 --> I[Weighted Ensemble Probability]
+    H1 & H2 & H3 & H4 --> I[Weighted Ensemble Probability]
     I --> J{Prob >= Threshold?}
     J -- Yes --> K[Result: Dangerous]
     J -- No --> L[Result: Safe]
@@ -60,7 +63,9 @@ MLProject/
 ├── models/
 │   ├── rf_model.pkl         # Trained Random Forest Model (Git ignored)
 │   ├── xgb_model.json       # Trained XGBoost Model
-│   └── weights.json         # Optimal ensemble weights (w_rf, w_xgb)
+│   ├── lgb_model.pkl        # Trained LightGBM Model (Git ignored)
+│   ├── lr_model.pkl         # Trained Logistic Regression Baseline (Git ignored)
+│   └── weights.json         # Optimal ensemble weights (w_rf, w_xgb, w_lgb, w_lr)
 ├── src/
 │   ├── __init__.py
 │   ├── feature.py           # Feature extraction, whitelisting & brand heuristics
@@ -96,7 +101,7 @@ venv\Scripts\activate
 source venv/bin/activate
 
 # Install required packages
-pip install flask pandas numpy xgboost scikit-learn joblib rapidfuzz tldextract
+pip install flask pandas numpy xgboost lightgbm scikit-learn joblib rapidfuzz tldextract
 ```
 
 ### 3. Setup Dataset & Whitelist
@@ -127,7 +132,7 @@ This script will output the training process logs, print the classification repo
 
 ## 📊 Extracted Features Breakdown
 
-The system extracts **33 features** split into 4 primary categories:
+The system extracts **34 features** split into 5 primary categories:
 
 | Feature Name | Category | Description |
 | :--- | :--- | :--- |
