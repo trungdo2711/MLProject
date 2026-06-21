@@ -1,0 +1,8 @@
+pandas
+scikit-learn
+jupyter
+tldextract
+rapidfuzz
+lightgbm
+numpy
+matplotlib
