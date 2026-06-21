@@ -56,11 +56,11 @@ This project is developed by students from Hanoi University of Science and Techn
 
 | Name | Student ID |
 |---|---|
-| Do Thanh Trung | 20241683 |
-| Nguyen Tuan Minh | 20241681 |
-| Khong Tuan Anh | 20241677 |
-| Nguyen Hoang Anh | 20241677 |
-| Pham Duc Linh | 20241680 |
+| Do Thanh Trung | 202416833 |
+| Nguyen Tuan Minh | 202416811 |
+| Khong Tuan Anh | 202416775 |
+| Nguyen Hoang Anh | 202416773 |
+| Pham Duc Linh | 202416806 |
 
 ## 📄 Full Research Report
 For an in-depth understanding of the algorithms, feature extraction formulas, and evaluation methodologies, please refer to our comprehensive LaTeX reports located within each module.
