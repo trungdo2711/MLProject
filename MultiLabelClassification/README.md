@@ -101,13 +101,6 @@ graph TD
     end
 
     T7 -. load model .-> I5
-
-    classDef default fill:#f9f9f9,stroke:#333,stroke-width:1px;
-    classDef train fill:#e8f5e9,stroke:#2e7d32,stroke-width:1px;
-    classDef infer fill:#fff3e0,stroke:#e65100,stroke-width:1px;
-    
-    class T1,T2,T3,T4,T5,T6,T7 train;
-    class I1,I2,I3,I4,I5,I6 infer;
 ```
 
 ### URL Normalisation
