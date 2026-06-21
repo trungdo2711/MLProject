@@ -83,22 +83,18 @@ MultiLabelClassification/
 
 ```mermaid
 graph TD
-    subgraph Training Pipeline
-        T1[Raw Dataset<br>653K + 18K URLs] --> T2[Deduplication<br>by URL string]
-        T2 --> T3[URL Decomposition<br>12 structural components]
-        T3 --> T4[Feature Extraction<br>63 numerical features]
-        T4 --> T5[StratifiedGroupKFold<br>80/10/10 partition]
-        T5 --> T6[LightGBM Training<br>GBDT, 4000 estimators]
-        T6 --> T7[Persisted Artifacts<br>.txt, .json, .joblib]
-    end
+    T1[Raw Dataset<br>653K + 18K URLs] --> T2[Deduplication<br>by URL string]
+    T2 --> T3[URL Decomposition<br>12 structural components]
+    T3 --> T4[Feature Extraction<br>63 numerical features]
+    T4 --> T5[StratifiedGroupKFold<br>80/10/10 partition]
+    T5 --> T6[LightGBM Training<br>GBDT, 4000 estimators]
+    T6 --> T7[Persisted Artifacts<br>.txt, .json, .joblib]
 
-    subgraph Inference Pipeline
-        I1[Input URL<br>raw string] --> I2[URL Normalisation<br>prepend scheme if absent]
-        I2 --> I3[Decomposition & Feature Extraction<br>63 features]
-        I3 --> I4[Column Reindexing<br>align with training schema]
-        I4 --> I5[LightGBM Inference<br>class-conditional probabilities]
-        I5 --> I6[Classification Output<br>benign / defacement / malware / phishing]
-    end
+    I1[Input URL<br>raw string] --> I2[URL Normalisation<br>prepend scheme if absent]
+    I2 --> I3[Decomposition & Feature Extraction<br>63 features]
+    I3 --> I4[Column Reindexing<br>align with training schema]
+    I4 --> I5[LightGBM Inference<br>class-conditional probabilities]
+    I5 --> I6[Classification Output<br>benign / defacement / malware / phishing]
 
     T7 -. load model .-> I5
 ```
